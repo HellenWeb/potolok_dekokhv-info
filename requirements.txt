@@ -1,0 +1,9 @@
+fastapi
+pydantic
+uvicorn
+sqlalchemy
+aiosqlite
+aiogram
+pydantic_settings
+slowapi
+starlette
