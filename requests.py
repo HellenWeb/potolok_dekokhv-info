@@ -15,6 +15,8 @@ from typing import List
 
 class TaskSchema(BaseModel):
     id: int
+    name: str
+    phone: str
     work_type: str
     address: str
     arrival_time: datetime
@@ -43,9 +45,11 @@ async def add_user(tg_id):
         await session.refresh(new_user)
         return new_user
 
-async def add_task(user_id):
+async def add_task(user_id, name, phone, work_type, address, arrival_time):
     async with async_session() as session:
         new_task = Tasks(
+            name=name,
+            phone=phone,
             work_type=work_type,
             address=address,
             arrival_time=arrival_time,
@@ -54,36 +58,55 @@ async def add_task(user_id):
         session.add(new_task)
         await session.commit()
 
-async def add_reviews(user_id):
+async def add_reviews(user_id, name, title, stars):
     async with async_session() as session:
-        new_review = Reviews(
-            name=name,
-            title=title,
-            stars=stars,
-            user=user_id
-        )
-        session.add(new_review)
-        await session.commit()
+        try:
+            review = await session.scalar(select(Reviews).where(Reviews.user == user_id))
+            if review:
+                raise ValueError("Отзыв уже был оставлен")
+            
+            new_review = Reviews(
+                name=name,
+                title=title,
+                stars=stars,
+                user=user_id
+            )
+            session.add(new_review)
+            await session.commit()
+        except:
+            raise ValueError("Ошибка, попробуйте позже")
 
-async def get_reviews(user_id):
+async def get_reviews():
     async with async_session() as session:
-        review = await session.scalar(select(Reviews).where(Reviews.id == user_id))
+        result = await session.execute(select(Reviews))
+        review = result.scalars().all()
 
-        serialized_reviews = [
-            ReviewsSchema.model_validation(t).model_dump() for t in review
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "title": r.title,
+                "stars": r.stars,
+                "date": r.date,
+            } for r in review
         ]
-
-        return serialized_reviews
     
-async def get_tasks(user_id):
+async def get_tasks():
     async with async_session() as session:
-        task = await session.scalar(select(Tasks).where(Tasks.id == user_id))
+        result = await session.execute(select(Tasks))
+        task = result.scalars().all()
 
-        serialized_tasks = [
-            TaskSchema.model_validation(t).model_dump() for t in task
+        return [
+            {
+                "id": r.id,
+                "name": r.name,
+                "phone": r.phone,
+                "work_type": r.work_type,
+                "address": r.address,
+                "arrival_time": r.arrival_time,
+                "created_at": r.created_at
+            } for r in task
         ]
-
-        return serialized_tasks
 
 
 

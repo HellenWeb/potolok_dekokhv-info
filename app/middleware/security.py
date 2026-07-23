@@ -8,52 +8,44 @@
 
 """
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
-import time
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 
-limiter = Limiter(key_func=get_remote_address)
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
-        try:
-            # Можно делать per-endpoint, но глобально:
-            await limiter.limit(f"{settings.RATE_LIMIT_PER_MINUTE}/minute")(call_next)(request)
-            response = await call_next(request)
-            return response
-        except RateLimitExceeded as e:
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "Rate limit exceeded"}
-            )
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware для установки важных security headers"""
+    
+    def __init__(self, app: ASGIApp):
+        super().__init__(app)
 
-# Security Headers Middleware
-async def add_security_headers(app: ASGIApp):
-    async def middleware(request: Request, call_next):
-        response: Response = await call_next(request)
-        
-        # Основные заголовки безопасности
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-        
-        # CSP (Content Security Policy) — очень важно!
-        response.headers["Content-Security-Policy"] = (
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        headers = {
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            "X-XSS-Protection": "1; mode=block",
+            "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()",
+        }
+
+        csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' https:; "
+            "style-src 'self' 'unsafe-inline' https:; "
             "img-src 'self' data: https:; "
-            "font-src 'self'; "
+            "font-src 'self' https:; "
             "object-src 'none'; "
             "base-uri 'self'; "
-            "form-action 'self';"
+            "form-action 'self'; "
+            "frame-ancestors 'none';"
         )
+
+        headers["Content-Security-Policy"] = csp
+
+        for key, value in headers.items():
+            response.headers[key] = value
+
         return response
-    return middleware

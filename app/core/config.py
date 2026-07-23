@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "qwerty123456789"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7
-    BACKEND_CORS_ORIGIN: list = ["http://localhost:3000"]
+    BACKEND_CORS_ORIGINS: list = ["http://localhost:3000"]
     ALLOWED_HOSTS: list = ["*"]
     RATE_LIMIT_PER_MINUTE: int = 60
 

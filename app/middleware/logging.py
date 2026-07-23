@@ -14,7 +14,7 @@ import logging
 import time
 
 class LoggingMiddleware(BaseHTTPMiddleware):
-    async def dispacher(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):
         start_time = time.time()
         res = await call_next(request)
         process_time = time.time() - start_time
