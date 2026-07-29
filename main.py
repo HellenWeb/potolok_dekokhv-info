@@ -47,7 +47,7 @@ class Review(BaseModel):
     tg_id: int
     name: str = Field(max_length=128)
     title: str = Field(max_length=256)
-    stars: float = Field(max_length=10)
+    stars: int
 
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
@@ -58,6 +58,9 @@ async def lifespan(app_: FastAPI):
 app = FastAPI(
     title="DEKO POTOLKI KHV API",
     version="1.0.0",
+    docs_url="/docs" if setting.ENVIROMENT != "production" else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if setting.ENVIROMENT != "production" else None,
     lifespan=lifespan
 ) 
 
@@ -100,6 +103,10 @@ async def show_reviews():
 @app.get(f"{setting.API_V1_STR}/tasks")
 async def show_task():
     return await req.get_tasks()
+
+@app.delete(f"{setting.API_V1_STR}/delete/{{task_id}}")
+async def del_task(task_id: int):
+    await req.delete_task(task_id)
 
 @app.post(f"{setting.API_V1_STR}/add_review")
 async def add_review(review: Review):

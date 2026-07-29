@@ -57,7 +57,7 @@ class Reviews(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(128), nullable=True)
     title: Mapped[str] = mapped_column(String(128))
-    stars: Mapped[int] = mapped_column(Float)
+    stars: Mapped[int] = mapped_column()
     date = mapped_column(DateTime, default=datetime.utcnow)
     user: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
     

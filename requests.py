@@ -8,6 +8,7 @@
 
 from sqlalchemy import select, update, delete, func
 from models import async_session, Persons, Tasks, Reviews
+from fastapi import HTTPException, status
 from app.core.config import setting
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
@@ -45,6 +46,18 @@ async def add_user(tg_id):
         await session.refresh(new_user)
         return new_user
 
+async def delete_task(task_id):
+    async with async_session() as session:
+        task = await session.execute(select(Tasks).where(Tasks.id == task_id))
+        task_i = task.scalars().first()
+        if not task_i:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Заявка с id={task_id} не найдена"
+            )
+        await session.delete(task_i)
+        await session.commit()
+
 async def add_task(user_id, name, phone, work_type, address, arrival_time):
     async with async_session() as session:
         new_task = Tasks(
@@ -60,21 +73,21 @@ async def add_task(user_id, name, phone, work_type, address, arrival_time):
 
 async def add_reviews(user_id, name, title, stars):
     async with async_session() as session:
-        try:
-            review = await session.scalar(select(Reviews).where(Reviews.user == user_id))
-            if review:
-                raise ValueError("Отзыв уже был оставлен")
-            
-            new_review = Reviews(
-                name=name,
-                title=title,
-                stars=stars,
-                user=user_id
+        review = await session.scalar(select(Reviews).where(Reviews.user == user_id))
+        if review:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Отзыв от вас уже был оставлен ранее"
             )
-            session.add(new_review)
-            await session.commit()
-        except:
-            raise ValueError("Ошибка, попробуйте позже")
+        
+        new_review = Reviews(
+            name=name,
+            title=title,
+            stars=stars,
+            user=user_id
+        )
+        session.add(new_review)
+        await session.commit()
 
 async def get_reviews():
     async with async_session() as session:

@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# My
+
+.env
+.env.*
+!.env.example
+*.sqlite3
+__pycache__/
+.venv/
+venv/
