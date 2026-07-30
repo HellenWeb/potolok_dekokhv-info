@@ -41,7 +41,7 @@ class AddTask(BaseModel):
     name: str = Field(max_length=128)
     work_type: str = Field(max_length=128)
     address: str = Field(max_length=128)
-    arrival_time: datetime
+    arrival_time: str
 
 class Review(BaseModel):
     tg_id: int
@@ -58,9 +58,6 @@ async def lifespan(app_: FastAPI):
 app = FastAPI(
     title="DEKO POTOLKI KHV API",
     version="1.0.0",
-    docs_url="/docs" if setting.ENVIROMENT != "production" else None,
-    redoc_url=None,
-    openapi_url="/openapi.json" if setting.ENVIROMENT != "production" else None,
     lifespan=lifespan
 ) 
 
@@ -69,6 +66,10 @@ app = FastAPI(
 # ДЛЯ ПРОДА
 # app.add_middleware(HTTPSRedirectMiddleware)
 
+app.add_middleware(SecurityHeadersMiddleware)
+
+app.add_middleware(LoggingMiddleware)
+
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=setting.ALLOWED_HOSTS, 
@@ -76,16 +77,12 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=setting.BACKEND_CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
-
-app.add_middleware(SecurityHeadersMiddleware)
-
-app.add_middleware(LoggingMiddleware)
 
 # Роуты к нашему API
 
@@ -112,6 +109,9 @@ async def del_task(task_id: int):
 async def add_review(review: Review):
     user = await req.add_user(review.tg_id)
     await req.add_reviews(user.id, review.name, review.title, review.stars)
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str): return {"message": "OK"}
 
 @app.get("/")
 async def hello():

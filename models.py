@@ -44,7 +44,7 @@ class Tasks(Base):
     phone: Mapped[str] = mapped_column(String(128), nullable=False)
     work_type: Mapped[str] = mapped_column(String(128))
     address: Mapped[str] = mapped_column(String(128))
-    arrival_time = mapped_column(DateTime)
+    arrival_time: Mapped[str] = mapped_column(String(128))
     created_at = mapped_column(DateTime, default=datetime.utcnow)
     user: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
 

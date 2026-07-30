@@ -20,7 +20,7 @@ class TaskSchema(BaseModel):
     phone: str
     work_type: str
     address: str
-    arrival_time: datetime
+    arrival_time: str
     created_at: datetime
     user: str
 
