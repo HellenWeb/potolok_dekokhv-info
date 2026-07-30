@@ -80,6 +80,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 const openIndex = ref(0);
 
+
 const toggle = (index) => {
   openIndex.value = openIndex.value === index ? -1 : index;
 };

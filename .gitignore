@@ -226,3 +226,4 @@ __marimo__/
 __pycache__/
 .venv/
 venv/
+config.js

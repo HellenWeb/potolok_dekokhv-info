@@ -48,6 +48,7 @@ class Review(BaseModel):
     name: str = Field(max_length=128)
     title: str = Field(max_length=256)
     stars: int
+    date: str
 
 @asynccontextmanager
 async def lifespan(app_: FastAPI):
@@ -60,7 +61,6 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 ) 
-
 # Подключаем мидлы для безопасности и логирования :)
 
 # ДЛЯ ПРОДА
@@ -108,7 +108,7 @@ async def del_task(task_id: int):
 @app.post(f"{setting.API_V1_STR}/add_review")
 async def add_review(review: Review):
     user = await req.add_user(review.tg_id)
-    await req.add_reviews(user.id, review.name, review.title, review.stars)
+    await req.add_reviews(user.id, review.name, review.title, review.stars, review.date)
 
 @app.options("/{rest_of_path:path}")
 async def preflight_handler(rest_of_path: str): return {"message": "OK"}

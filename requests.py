@@ -71,7 +71,7 @@ async def add_task(user_id, name, phone, work_type, address, arrival_time):
         session.add(new_task)
         await session.commit()
 
-async def add_reviews(user_id, name, title, stars):
+async def add_reviews(user_id, name, title, stars, date):
     async with async_session() as session:
         review = await session.scalar(select(Reviews).where(Reviews.user == user_id))
         if review:
@@ -84,6 +84,7 @@ async def add_reviews(user_id, name, title, stars):
             name=name,
             title=title,
             stars=stars,
+            date=date,
             user=user_id
         )
         session.add(new_review)

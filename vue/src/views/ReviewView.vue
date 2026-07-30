@@ -60,8 +60,8 @@
               {{ review.initials }}
             </div>
             <div>
-              <p class="font-body text-[14px] font-semibold leading-tight">{{ review.name }}</p>
-              <p class="font-body text-[12px] text-[#9AA0AB]">{{ review.date }}</p>
+              <p class="font-body text-[14px] mb-1 font-semibold leading-tight">{{ review.name }}</p>
+              <p class="font-body text-[10px] text-[#9AA0AB]">{{ review.date }}</p>
               <p class="mt-3 font-body text-[13.5px] leading-relaxed text-[#3D3F44]">
                 {{ review.title }}
               </p>    
@@ -162,6 +162,10 @@ import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const api = window.APP_CONFIG.API_URL
+const tg = window.Telegram.WebApp;
+
+tg.ready();
 
 const reviews = ref([]);
 const loading = ref(true);
@@ -175,6 +179,19 @@ const form = ref({
 const submitting = ref(false);
 const formError = ref(null);
 const formSuccess = ref(null);
+
+const date = new Date();
+
+const time = date.toLocaleDateString("ru-RU", {
+  hour: "2-digit",
+  minute: "2-digit"
+})
+
+const formattedDate = date.toLocaleDateString("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric"
+})
 
 const colors = ['#C98A00', '#1C1D21', '#9AA0AB', '#4A6FA5', '#6B8E23', '#8B4513'];
 
@@ -204,7 +221,7 @@ async function fetchReviews() {
   error.value = null;
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/v1/reviews', {
+    const response = await fetch(`${api}/api/v1/reviews`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -250,17 +267,17 @@ async function submitReview() {
   submitting.value = true;
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/v1/add_review', {
+    const response = await fetch(`${api}/api/v1/add_review`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        tg_id: window.Telegram.WebApp.initDataUnsafe?.user,
+        tg_id: tg.initDataUnsafe.user?.id,
         name: form.value.name.trim(),
         title: form.value.title.trim(),
         stars: form.value.stars,
-        date: new Date().toLocaleDateString()
+        date: `${time} - ${formattedDate}`
       }),
     });
 

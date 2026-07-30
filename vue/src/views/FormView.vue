@@ -129,6 +129,10 @@ import { ref, computed } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
+const api = window.APP_CONFIG.API_URL
+const tg = window.Telegram.WebApp
+
+tg.ready();
 
 const type = computed(() => route.query.type || 'consultation')
 
@@ -152,7 +156,7 @@ const icons = {
 }
 
 const form = ref({
-    tg_id: window.Telegram.WebApp.initDataUnsafe?.user,
+    tg_id: tg.initDataUnsafe.user?.id,
     name: '',
     phone: '',
     address: '',
@@ -167,7 +171,7 @@ async function submit() {
     loading.value = true
     errorMsg.value = ''
     try {
-        const res = await fetch('http://127.0.0.1:8000/api/v1/add', {
+        const res = await fetch(`${api}/api/v1/add`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ ...form.value, work_type: titles[type.value] })
@@ -192,7 +196,7 @@ async function submit() {
     } catch (e)
     {
         console.error(e)
-        errorMsg.value = 'Ошибка отправки. Попробуйте позже'
+        errorMsg.value = e.message
     } finally {
         loading.value = false
     }
