@@ -1,0 +1,15 @@
+# Telegram Bot
+aiogram
+
+# HTTP-клиент для запросов к FastAPI
+httpx
+
+# Конфигурация
+pydantic
+pydantic-settings
+python-dotenv
+
+# Дополнительно
+aiofiles
+uvloop
+
