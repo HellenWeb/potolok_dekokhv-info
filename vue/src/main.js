@@ -1,32 +1,12 @@
-import { createApp, onMounted } from 'vue'
+import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
 import './assets/main.css';
+import { initTelegramWebApp } from './lib/telegram';
 
 const app = createApp(App)
 
-onMounted(() => {
-    const tg = window.Telegram?.WebApp;
-
-    if (!tg) return;
-
-    tg.ready();
-    tg.expand();
-
-    if (tg.requestFullscreen) {
-        tg.requestFullscreen();
-    }
-
-    tg.setHeaderColor('#111111');
-    tg.setBackgroundColor('#111111');
-
-})
-
-if (window.Telegram?.WebApp)
-{
-    window.Telegram.WebApp.ready();
-    window.Telegram.WebApp.expand();
-}
+initTelegramWebApp();
 
 app.use(router)
 

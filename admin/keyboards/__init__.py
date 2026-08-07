@@ -1,2 +1,0 @@
-"""Keyboards for admin bot."""
-

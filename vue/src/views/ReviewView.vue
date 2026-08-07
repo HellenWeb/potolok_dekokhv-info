@@ -160,12 +160,11 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { apiRequest } from '@/lib/api';
+import { initTelegramWebApp } from '@/lib/telegram';
 
 const router = useRouter();
-const api = window.APP_CONFIG.API_URL
-const tg = window.Telegram.WebApp;
-
-tg.ready();
+initTelegramWebApp();
 
 const reviews = ref([]);
 const loading = ref(true);
@@ -179,19 +178,6 @@ const form = ref({
 const submitting = ref(false);
 const formError = ref(null);
 const formSuccess = ref(null);
-
-const date = new Date();
-
-const time = date.toLocaleDateString("ru-RU", {
-  hour: "2-digit",
-  minute: "2-digit"
-})
-
-const formattedDate = date.toLocaleDateString("ru-RU", {
-  day: "numeric",
-  month: "long",
-  year: "numeric"
-})
 
 const colors = ['#C98A00', '#1C1D21', '#9AA0AB', '#4A6FA5', '#6B8E23', '#8B4513'];
 
@@ -210,7 +196,13 @@ function normalizeReview(item, index) {
     name: item.name || 'Без имени',
     title: item.title || '',
     rating: Number(item.stars) || 0,
-    date: item.date,
+    date: item.created_at
+      ? new Date(item.created_at).toLocaleDateString('ru-RU', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : 'Дата не указана',
     initials: getInitials(item.name),
     color: colors[index % colors.length],
   };
@@ -221,31 +213,8 @@ async function fetchReviews() {
   error.value = null;
 
   try {
-    const response = await fetch(`${api}/api/v1/reviews`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Ошибка сервера: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    let list = [];
-    if (Array.isArray(data)) {
-      list = data;
-    } else if (Array.isArray(data.tasks)) {
-      list = data.tasks;
-    } else if (Array.isArray(data.reviews)) {
-      list = data.reviews;
-    } else if (Array.isArray(data.data)) {
-      list = data.data;
-    }
-
-    reviews.value = list.map(normalizeReview);
+    const data = await apiRequest('/reviews', { method: 'GET' });
+    reviews.value = (Array.isArray(data) ? data : []).map(normalizeReview);
   } catch (e) {
     console.error('Ошибка загрузки отзывов:', e);
     error.value = e.message || 'Неизвестная ошибка';
@@ -267,23 +236,14 @@ async function submitReview() {
   submitting.value = true;
 
   try {
-    const response = await fetch(`${api}/api/v1/add_review`, {
+    await apiRequest('/reviews', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
-        tg_id: tg.initDataUnsafe.user?.id,
         name: form.value.name.trim(),
         title: form.value.title.trim(),
         stars: form.value.stars,
-        date: `${time} - ${formattedDate}`
       }),
     });
-
-    if (!response.ok) {
-      throw new Error(`Ошибка сервера попробуйте позже`);
-    }
 
     formSuccess.value = 'Отзыв успешно отправлен!';
     form.value = { name: '', title: '', stars: 0 };

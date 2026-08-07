@@ -85,13 +85,12 @@
 <script setup>
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { initTelegramWebApp } from '@/lib/telegram';
 
 const router = useRouter()
 
 onMounted(() => {
-  // подстраиваемся под Telegram Mini App, если открыто внутри клиента Telegram
-  window.Telegram?.WebApp?.ready?.();
-  window.Telegram?.WebApp?.expand?.();
+  initTelegramWebApp();
 });
 
 const services = [

@@ -1,130 +1,79 @@
-#!/usr/bin/env python3 
-
-"""
-
-    date: 24.07.2026
-
-    Основной файл для работы с FastAPI и нашим Mini APP
-
-"""
-
 from contextlib import asynccontextmanager
-from pydantic import BaseModel
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from app.core.config import setting
-from app.middleware.security import SecurityHeadersMiddleware
-from app.middleware.logging import LoggingMiddleware
 from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
-from models import init_db
-import phonenumbers
-from pydantic import BaseModel, field_validator, Field
-import requests as req
-from datetime import datetime
+from app.api.router import api_router
+from app.core.config import get_settings
+from app.core.exceptions import register_exception_handlers
+from app.db.init_db import init_db
+from app.middleware.logging import LoggingMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.security import SecurityHeadersMiddleware
 
-class AddTask(BaseModel):
-    tg_id: int
-    phone: str
 
-    @field_validator("phone")
-    @classmethod
-    def validate_phone(cls, value):
-        try:
-            phone = phonenumbers.parse(value, "RU")
-            if not phonenumbers.is_valid_number(phone):
-                raise ValueError("Неккоректный номер телефона")
-        except phonenumbers.NumberParseException:
-            raise ValueError("Некорректный формат номера")
-        return value
-
-    name: str = Field(max_length=128)
-    work_type: str = Field(max_length=128)
-    address: str = Field(max_length=128)
-    arrival_time: str
-
-class Review(BaseModel):
-    tg_id: int
-    name: str = Field(max_length=128)
-    title: str = Field(max_length=256)
-    stars: int
-    date: str
+settings = get_settings()
 
 @asynccontextmanager
-async def lifespan(app_: FastAPI):
+async def lifespan(_: FastAPI):
     await init_db()
-    print("Initilization this application --;--")
     yield
 
-app = FastAPI(
-    title="DEKO POTOLKI KHV API",
-    version="1.0.0",
-    lifespan=lifespan
-) 
-# Подключаем мидлы для безопасности и логирования :)
+def create_application() -> FastAPI:
+    app = FastAPI(
+        title=settings.PROJECT_NAME,
+        version="2.0.0",
+        lifespan=lifespan,
+    )
 
-# ДЛЯ ПРОДА
-# app.add_middleware(HTTPSRedirectMiddleware)
+    if settings.is_production:
+        app.add_middleware(HTTPSRedirectMiddleware)
 
-app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(LoggingMiddleware)
+    app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.security.rate_limit_per_minute)
 
-app.add_middleware(LoggingMiddleware)
+    if "*" not in settings.security.allowed_hosts:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.security.allowed_hosts,
+        )
 
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=setting.ALLOWED_HOSTS, 
-)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.security.cors_origins,
+        allow_origin_regex=settings.security.cors_origin_regex,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", settings.telegram.init_data_header, "X-Debug-Telegram-Id"],
+        expose_headers=["Content-Type"],
+    )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
+    register_exception_handlers(app)
+    app.include_router(api_router)
 
-# Роуты к нашему API
+    @app.get("/", tags=["Health"])
+    async def root() -> dict[str, str]:
+        return {
+            "project": settings.PROJECT_NAME,
+            "status": "ok",
+            "version": "2.0.0",
+        }
 
-@app.post(f"{setting.API_V1_STR}/add")
-async def add_task(task: AddTask):
-    user = await req.add_user(task.tg_id)
-    await req.add_task(user.id, 
-                       task.name, task.phone, task.work_type, task.address,
-                       task.arrival_time)
+    return app
 
-@app.get(f"{setting.API_V1_STR}/reviews")
-async def show_reviews():
-    return await req.get_reviews()
 
-@app.get(f"{setting.API_V1_STR}/tasks")
-async def show_task():
-    return await req.get_tasks()
-
-@app.delete(f"{setting.API_V1_STR}/delete/{{task_id}}")
-async def del_task(task_id: int):
-    await req.delete_task(task_id)
-
-@app.post(f"{setting.API_V1_STR}/add_review")
-async def add_review(review: Review):
-    user = await req.add_user(review.tg_id)
-    await req.add_reviews(user.id, review.name, review.title, review.stars, review.date)
-
-@app.options("/{rest_of_path:path}")
-async def preflight_handler(rest_of_path: str): return {"message": "OK"}
-
-@app.get("/")
-async def hello():
-    return {"status": "Time to CODE"}
-
-# Запуск сервера --;--
+app = create_application()
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="127.0.0.1",
         port=8000,
         proxy_headers=True,
-        forwarded_allow_ips="*"
+        forwarded_allow_ips="*",
+        reload=settings.DEBUG,
     )

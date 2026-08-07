@@ -75,7 +75,7 @@
           />
         </label>
 
-        <label class="flex flex-col gap-1.5">
+        <label v-if="type !== 'consultation'" class="flex flex-col gap-1.5">
           <span class="px-1 font-body text-[12px] font-medium text-[#9AA0AB]">Адрес</span>
           <input
             v-model="form.address"
@@ -126,13 +126,13 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
 import { ref, computed } from 'vue'
+import { apiRequest } from '@/lib/api';
+import { initTelegramWebApp } from '@/lib/telegram';
 
 const route = useRoute()
 const router = useRouter()
-const api = window.APP_CONFIG.API_URL
-const tg = window.Telegram.WebApp
 
-tg.ready();
+initTelegramWebApp();
 
 const type = computed(() => route.query.type || 'consultation')
 
@@ -156,7 +156,6 @@ const icons = {
 }
 
 const form = ref({
-    tg_id: tg.initDataUnsafe.user?.id,
     name: '',
     phone: '',
     address: '',
@@ -171,27 +170,10 @@ async function submit() {
     loading.value = true
     errorMsg.value = ''
     try {
-        const res = await fetch(`${api}/api/v1/add`, {
+        await apiRequest('/tasks', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ ...form.value, work_type: titles[type.value] })
         })
-
-        if (!res.ok)
-        {
-            let errMessage = 'Ошибка отправки. Попробуйте позже'
-
-            try {
-                const errorData = await res.json()
-                errMessage = errorData.detail || errorData.message || errMessage
-
-            } catch {
-
-            }
-
-            throw new Error(errMessage)
-        }
-
         success.value = true
     } catch (e)
     {

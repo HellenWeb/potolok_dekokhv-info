@@ -1,72 +1,17 @@
-#!/usr/bin/env python3
+from app.db.base import Base
+from app.db.init_db import init_db
+from app.db.session import AsyncSessionLocal as async_session
+from app.db.session import engine
+from app.models.review import Review as Reviews
+from app.models.task import Task as Tasks
+from app.models.user import User as Persons
 
-"""
-
-    date: 22.07.2026
-
-    -;- Файл для создание СУБД и их полей -;-
-
-"""
-
-from sqlalchemy import ForeignKey, String, BigInteger, DateTime, Float
-from sqlalchemy.orm import Mapped, DeclarativeBase, mapped_column
-from app.core.config import setting
-from sqlalchemy.ext.asyncio import AsyncAttrs, async_sessionmaker, create_async_engine
-from datetime import datetime
-
-## CONNECT
-
-engine = create_async_engine(url=setting.DATABASE_URL, echo=True)
-async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
-
-## Базовый модель для всех остальных моделей
-
-class Base(AsyncAttrs, DeclarativeBase):
-    pass
-
-## Модель для записи пользователей
-
-class Persons(Base):
-
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(primary_key=True, unique=True, autoincrement=True)
-    tg_id = mapped_column(BigInteger)
-
-## Модель для записи замеров и прочих услуг в базу для удобной работы с ними
-
-class Tasks(Base):
-    
-    __tablename__ = "tasks"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    phone: Mapped[str] = mapped_column(String(128), nullable=False)
-    work_type: Mapped[str] = mapped_column(String(128))
-    address: Mapped[str] = mapped_column(String(128))
-    arrival_time: Mapped[str] = mapped_column(String(128))
-    created_at = mapped_column(DateTime, default=datetime.utcnow)
-    user: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
-
-## Модель для записи отзывов и работы с ними
-
-class Reviews(Base):
-
-    __tablename__ = "review"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(128), nullable=True)
-    title: Mapped[str] = mapped_column(String(128))
-    stars: Mapped[int] = mapped_column()
-    date: Mapped[str] = mapped_column(String(128))
-    user: Mapped[str] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'))
-    
-
-## Инициализируем базу данных
-
-async def init_db():
-    print("INIT DB")
-    async with engine.begin() as conn:
-        print("CREATE_ALL")
-        await conn.run_sync(Base.metadata.create_all)
-
+__all__ = [
+    "Base",
+    "Persons",
+    "Reviews",
+    "Tasks",
+    "async_session",
+    "engine",
+    "init_db",
+]

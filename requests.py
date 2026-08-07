@@ -1,127 +1,69 @@
-#!/usr/bin/env python3
+from __future__ import annotations
 
-"""
+from app.core.exceptions import ConflictError, NotFoundError
+from app.db.session import AsyncSessionLocal
+from app.repositories.review import ReviewRepository
+from app.repositories.task import TaskRepository
+from app.repositories.user import UserRepository
+from app.schemas.review import ReviewRead
+from app.schemas.task import TaskRead
 
-    Запросы для базы в виде функций -;-
 
-"""
+async def add_user(tg_id: int):
+    async with AsyncSessionLocal() as session:
+        return await UserRepository(session).get_or_create_by_telegram_id(tg_id)
 
-from sqlalchemy import select, update, delete, func
-from models import async_session, Persons, Tasks, Reviews
-from fastapi import HTTPException, status
-from app.core.config import setting
-from pydantic import BaseModel, ConfigDict
-from datetime import datetime
-from typing import List
 
-class TaskSchema(BaseModel):
-    id: int
-    name: str
-    phone: str
-    work_type: str
-    address: str
-    arrival_time: str
-    created_at: datetime
-    user: str
+async def delete_task(task_id: int) -> None:
+    async with AsyncSessionLocal() as session:
+        task_repository = TaskRepository(session)
+        task = await task_repository.get_by_id(task_id)
+        if task is None:
+            raise NotFoundError(f"Заявка с id={task_id} не найдена", error_code="task_not_found")
+        await task_repository.delete(task)
 
-    model_config = ConfigDict(from_attributes=True)
 
-class ReviewsSchema(BaseModel):
-    id: int
-    name: str
-    title: str
-    stars: int
-    date: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-async def add_user(tg_id):
-    async with async_session() as session:
-        user = await session.scalar(select(Persons).where(Persons.tg_id == tg_id))
-        if user:
-            return user
-        new_user = Persons(tg_id=tg_id)
-        session.add(new_user)
-        await session.commit()
-        await session.refresh(new_user)
-        return new_user
-
-async def delete_task(task_id):
-    async with async_session() as session:
-        task = await session.execute(select(Tasks).where(Tasks.id == task_id))
-        task_i = task.scalars().first()
-        if not task_i:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Заявка с id={task_id} не найдена"
-            )
-        await session.delete(task_i)
-        await session.commit()
-
-async def add_task(user_id, name, phone, work_type, address, arrival_time):
-    async with async_session() as session:
-        new_task = Tasks(
+async def add_task(
+    user_id: int,
+    name: str,
+    phone: str,
+    work_type: str,
+    address: str | None,
+    arrival_time: str,
+) -> None:
+    async with AsyncSessionLocal() as session:
+        await TaskRepository(session).create(
+            user_id=user_id,
             name=name,
             phone=phone,
             work_type=work_type,
             address=address,
             arrival_time=arrival_time,
-            user=user_id
         )
-        session.add(new_task)
-        await session.commit()
 
-async def add_reviews(user_id, name, title, stars, date):
-    async with async_session() as session:
-        review = await session.scalar(select(Reviews).where(Reviews.user == user_id))
-        if review:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Отзыв от вас уже был оставлен ранее"
+
+async def add_reviews(user_id: int, name: str, title: str, stars: int, date: str | None = None) -> None:
+    async with AsyncSessionLocal() as session:
+        review_repository = ReviewRepository(session)
+        existing_review = await review_repository.get_by_user_id(user_id)
+        if existing_review is not None:
+            raise ConflictError(
+                "Отзыв от вас уже был оставлен ранее",
+                error_code="review_already_exists",
             )
-        
-        new_review = Reviews(
-            name=name,
-            title=title,
-            stars=stars,
-            date=date,
-            user=user_id
-        )
-        session.add(new_review)
-        await session.commit()
+        await review_repository.create(user_id=user_id, name=name, title=title, stars=stars)
 
-async def get_reviews():
-    async with async_session() as session:
-        result = await session.execute(select(Reviews))
-        review = result.scalars().all()
 
-        return [
-            {
-                "id": r.id,
-                "name": r.name,
-                "title": r.title,
-                "stars": r.stars,
-                "date": r.date,
-            } for r in review
-        ]
-    
-async def get_tasks():
-    async with async_session() as session:
-        result = await session.execute(select(Tasks))
-        task = result.scalars().all()
+async def get_reviews() -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        reviews = await ReviewRepository(session).list(limit=100, offset=0)
+        return [ReviewRead.model_validate(review).model_dump(mode="json") for review in reviews]
 
-        return [
-            {
-                "id": r.id,
-                "name": r.name,
-                "phone": r.phone,
-                "work_type": r.work_type,
-                "address": r.address,
-                "arrival_time": r.arrival_time,
-                "created_at": r.created_at
-            } for r in task
-        ]
 
+async def get_tasks() -> list[dict]:
+    async with AsyncSessionLocal() as session:
+        tasks = await TaskRepository(session).list(limit=100, offset=0)
+        return [TaskRead.model_validate(task).model_dump(mode="json") for task in tasks]
 
 
 

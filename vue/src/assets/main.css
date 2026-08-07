@@ -12,8 +12,14 @@
   --radius: 10px;
   --radius-sm: 6px;
   --transition: all 0.25s ease;
+  --app-height: 100%;
   --border: #ebebeb;
   --card-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+html, body, #app {
+  height: var(--app-height);
+  min-height: 100%;
 }
 
 * {

@@ -1,2 +1,0 @@
-"""Filters for aiogram handlers."""
-
